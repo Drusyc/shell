@@ -62,10 +62,7 @@ int execCmd (struct cmdline * l, int i) {
         return EXIT_SUCCESS;
 }//execCmd()
 
-void printJobs (struct cmdline *l) {
-
-
-}
+void printJobs () {}
 
 int main() {
         printf("Variante %d: %s\n", VARIANTE, VARIANTE_STRING);
