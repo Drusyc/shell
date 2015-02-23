@@ -19,16 +19,53 @@
 #endif
 
 int execCmd (struct cmdline * l, int i) {
-        int fpid = -1;
+        pid_t parent = getpid();
+        printf("PID parent : %d\n", parent);
 
-        if ((fpid = fork()) == 0) {
+        pid_t pidChild =  fork();
+
+        if (pidChild == 0) {
+                /* Child .. */
                 execvp(*(l->seq[i]), *l->seq);
-        } else if (l->bg) {
-                wait(NULL);
+                _exit (EXIT_FAILURE);
+
+        } else if (pidChild == -1) {
+                perror("Error during fork..");
+                return EXIT_FAILURE;
+
+        } else if (!l->bg) {
+                /* Parent.. */
+
+                /* status contains information on how the child has terminated */
+                int status;
+                /* wpid contains the ID of the child whose state has change */
+                int wpid;
+                
+                printf("PID child :%d\n\n\n", pidChild);
+
+                /* wait for any child */
+                wpid = waitpid(-1, &status, 0); 
+                printf("\n\nchild (pid %d) ", wpid);
+                if (WIFEXITED(status)) {
+                        /* true if the child terminated normally, that is, by calling exit(3) or _exit(2), or by returning from main() */
+                        printf("exited normally, status %d\n", WEXITSTATUS(status));
+                } else if (WIFSIGNALED(status)) {
+                        /* true if the child process was terminated by a signal */
+                        printf("killed by signal %d\n", WTERMSIG(status));
+                } else if (WIFSTOPPED (status)) {
+                        /* true if the child process was stopped by delivery of a signal */
+                        printf("stopped by signal %d\n", WIFSTOPPED(status));
+                } else {
+                        printf("exitted for other reasons.. (see man waitpid)\n");
+                }
         }
-        return 0;
+        return EXIT_SUCCESS;
 }//execCmd()
 
+void printJobs (struct cmdline *l) {
+
+
+}
 
 int main() {
         printf("Variante %d: %s\n", VARIANTE, VARIANTE_STRING);
@@ -59,10 +96,10 @@ int main() {
 		/* Display each command of the pipe */
 		for (i=0; l->seq[i]!=0; i++) {
 			char **cmd = l->seq[i];
-
-                        if (execCmd(l, i) != 0)
-                                perror ("FAUX");
-
+                        
+                        if (execCmd(l, i) != EXIT_SUCCESS)
+                                perror ("hum ?..\n");
+                        
 			printf("seq[%d]: ", i);
                         for (j=0; cmd[j]!=0; j++) {
                                 printf("'%s' ", cmd[j]);
