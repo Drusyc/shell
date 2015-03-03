@@ -12,6 +12,7 @@
 #include <sys/wait.h> //wait()..
 #include <string.h> //string & co
 #include <signal.h> //signal()..
+#include <fcntl.h> //open.. 
 
 #include "liste.h"
 
@@ -57,6 +58,7 @@ int execCmd (struct cmdline * l, int y) {
         pid_t pidChild = -1;
         int i;
         int nbPipes = 0;
+        int fd = 0;
         /* compte le nombre de commande pipé */
 	for (i=0; l->seq[i]!=0; i++) 
                 nbPipes++;
@@ -81,8 +83,6 @@ int execCmd (struct cmdline * l, int y) {
                 if (pidChild == 0) {
                         /* Child .. */
 
-                        //printf("i : %i / nbPipes : %i\n", i, nbPipes);
-
                         printf("%s (PID :%d)\n\n", *l->seq[i], getpid());
                         /* Check if there is a pipe (next command).. */
                         /* if we are the first command */
@@ -98,7 +98,19 @@ int execCmd (struct cmdline * l, int y) {
                                 dup2(tuyau[i-1][0],0);
                                 dup2(tuyau[i][1],1);
                         }
-                        
+
+                        /* Redirection */
+                        if (l->in != NULL && i == 0) {
+				fd = open(l->in, O_RDONLY);
+				dup2(fd, 0);
+				close(fd);
+			}
+			if (l->out != NULL && l->seq[i+1] == 0) {
+				fd = open(l->out, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+				dup2(fd, 1);
+				close(fd);
+			}
+
                         /* Ferme les tuyaux */
                         for(int j=0; j < nbPipes-1; j++) {
                                 close(tuyau[j][0]);
