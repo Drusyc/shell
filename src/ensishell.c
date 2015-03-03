@@ -11,6 +11,7 @@
 #include <sys/types.h> //wait()..
 #include <sys/wait.h> //wait()..
 #include <string.h> //string & co
+#include <signal.h> //signal()..
 
 #include "liste.h"
 
@@ -42,10 +43,17 @@ void checkStatus (int status) {
 
 list_t * bgProcList = NULL;
 
+void handlerSigchild () {
+        printf("Child terminated..\n");
+}
+
+
+
 int execCmd (struct cmdline * l, int y) {
         //pid_t parent = getpid();
         //printf("PID parent : %d\n", parent);
 
+        signal(SIGCHLD, handlerSigchild);
         pid_t pidChild = -1;
         int i;
         int nbPipes = 0;
@@ -73,6 +81,8 @@ int execCmd (struct cmdline * l, int y) {
                 if (pidChild == 0) {
                         /* Child .. */
 
+                        //printf("i : %i / nbPipes : %i\n", i, nbPipes);
+
                         printf("%s (PID :%d)\n\n", *l->seq[i], getpid());
                         /* Check if there is a pipe (next command).. */
                         /* if we are the first command */
@@ -80,24 +90,23 @@ int execCmd (struct cmdline * l, int y) {
                                 dup2(tuyau[0][1], 1);
                         }
                         /* if we are not the first command */
-                        else if (i == nbPipes) {
-                                dup2(tuyau[nbPipes-1][0], 0);
+                        else if (i != 0 && i == nbPipes-1) {
+                                dup2(tuyau[nbPipes-2][0], 0);
                         }
                         /* */
-                        else if (l->seq[i+1] !=0) {
-                                dup2(tuyau[i][0],0);
-                                dup2(tuyau[i+1][1],1);
+                        else if (i != 0 && l->seq[i+1] !=0) {
+                                dup2(tuyau[i-1][0],0);
+                                dup2(tuyau[i][1],1);
                         }
                         
                         /* Ferme les tuyaux */
-                        for(i=0; i < nbPipes-1; i++) {
-                                close(tuyau[i][0]);
-                                close(tuyau[i][1]);
+                        for(int j=0; j < nbPipes-1; j++) {
+                                close(tuyau[j][0]);
+                                close(tuyau[j][1]);
                         }
 
                         char ** cmd = l->seq[i];
                         execvp(cmd[0], cmd);
-                        //execvp(*(l->seq[i]), *l->seq);
                         _exit (EXIT_FAILURE);
 
                 } else if (pidChild == -1) {
