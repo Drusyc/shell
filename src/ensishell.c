@@ -44,17 +44,25 @@ void checkStatus (int status) {
 
 list_t * bgProcList = NULL;
 
-void handlerSigchild () {
-        printf("Child terminated..\n");
+void handlerSigchild (int signum) {
+        if (signum == SIGCHLD) {
+                int status = 0;
+                int wpid = 0;
+
+                wpid = waitpid(-1, &status, WNOHANG); 
+                if (WIFEXITED(status)) {
+                        printf("Child terminated..\n");
+                }
+        } else {
+                printf("No\n");
+        }
 }
-
-
 
 int execCmd (struct cmdline * l, int y) {
         //pid_t parent = getpid();
         //printf("PID parent : %d\n", parent);
 
-        signal(SIGCHLD, handlerSigchild);
+        
         pid_t pidChild = -1;
         int i;
         int nbPipes = 0;
@@ -119,7 +127,7 @@ int execCmd (struct cmdline * l, int y) {
 
                         char ** cmd = l->seq[i];
                         execvp(cmd[0], cmd);
-                        _exit (EXIT_FAILURE);
+                        //_exit (EXIT_FAILURE);
 
                 } else if (pidChild == -1) {
                         perror("Error during fork..");
@@ -155,6 +163,8 @@ int execCmd (struct cmdline * l, int y) {
 
 int main() {
         printf("Variante %d: %s\n", VARIANTE, VARIANTE_STRING);
+
+        signal(SIGCHLD, handlerSigchild);
 
 	while (1) {
 		struct cmdline *l;
